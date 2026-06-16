@@ -10,6 +10,21 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <style>
+
+  .searchable-select-container { position: relative; width: 100%; }
+.select-search-results {
+    position: absolute; top: 100%; left: 0; right: 0;
+    background: var(--surface); border: 1px solid var(--border2);
+    border-radius: 8px; max-height: 180px; overflow-y: auto;
+    z-index: 9999; display: none; box-shadow: 0 8px 25px rgba(0,0,0,0.5);
+}
+.select-search-item {
+    padding: 10px 14px; cursor: pointer; font-size: 13px;
+    color: var(--text); border-bottom: 1px solid var(--border);
+}
+.select-search-item:hover { background: var(--surface2); color: var(--gold); }
+.select-search-item:last-child { border-bottom: none; }
+
 /* --- CORE STYLES (DARK & LIGHT) --- */
 *{box-sizing:border-box;margin:0;padding:0}:root{--bg:#080a0f;--surface:#151822;--surface2:#1e2230;--surface3:#282d3e;--border:#2a3040;--border2:#3d455c;--text:#f0ede8;--text2:#a09a90;--text3:#5a5650;--gold:#c9a96e;--gold2:#e8c98a;--gold-soft:rgba(201,169,110,0.12);--canvas-filter:none}
 body.theme-light{--bg:#f9f8f6;--surface:#ffffff;--surface2:#f0edea;--surface3:#e6e2dd;--border:#e0ddd9;--border2:#d0cdc9;--text:#2a2825;--text2:#4a4845;--text3:#7a7875;--gold:#b38b4d;--gold2:#967035;--gold-soft:rgba(179,139,77,0.15);--canvas-filter:invert(1) hue-rotate(180deg) opacity(0.3)}
@@ -310,7 +325,7 @@ body.theme-vintage .app-header, body.theme-vintage .bottom-nav { box-shadow: 0 2
   const linksRef = db.ref('sharedLinks');
 
   const MASTER_USER = 'Kx393'; 
-  const MASTER_PASS = 'sumedh_is_the_goat';
+  const MASTER_PASS = '$!1234';
 
   const STRINGS = {
     en:{
@@ -914,10 +929,10 @@ body.theme-vintage .app-header, body.theme-vintage .bottom-nav { box-shadow: 0 2
     let span = document.createElement('span'); span.style.cssText = 'display:block; margin: 0 -30px; text-align:center; line-height:1.1;'; 
     span.innerHTML = dname(m).replace(/ /g, '<br>'); nm.appendChild(span); card.appendChild(nm);
     
-    if(isSpouse) { 
+    /*if(isSpouse) { 
         let sl = document.createElement('div'); sl.className = 'spouse-label'; sl.style.cssText = 'width:100%; display:flex; justify-content:center; overflow:visible; margin-top:4px;'; 
         let slSpan = document.createElement('span'); slSpan.style.cssText = 'display:block; margin: 0 -30px; text-align:center;'; slSpan.textContent = s('sp'); sl.appendChild(slSpan); card.appendChild(sl); 
-    }
+    }*/
     
     if(m.birthYear || m.deathYear) { 
         let dt = document.createElement('div'); dt.className = 'date-label'; 
@@ -1105,12 +1120,19 @@ body.theme-vintage .app-header, body.theme-vintage .bottom-nav { box-shadow: 0 2
         sm = sm.filter(m => m && state.currentUser.assignedProfiles.includes(m.id));
     }
 
+    let totalCount = sm.length; 
+    let primaryCount = sm.filter(m => !m.isSpouse).length;
+
     let sidebarHtml = `<div class="admin-sidebar">
-        <div class="sidebar-title">${s('all')}</div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 1rem;">
+            <div class="sidebar-title" style="margin-bottom: 0;">${s('all')}</div>
+            <div style="font-size: 11px; color: var(--gold); font-weight: 500;">Total: ${totalCount}</div>
+        </div>
         <input type="text" class="tool-input" placeholder="Search records..." oninput="App.filterAdmin(this.value)" style="margin-bottom:15px; width:100%; box-sizing:border-box;">
         <div id="mlist" style="flex:1; overflow-y:auto; margin-bottom:1rem; padding-right:5px;"></div>
         <button class="sidebar-btn btn-add" onclick="App.startNew()">${s('add')}</button>
     </div>`;
+    
     v.innerHTML = sidebarHtml + `<div class="admin-form-wrap" id="aform"></div>`;
     
     let list = getEl('mlist'); 
@@ -1189,7 +1211,19 @@ body.theme-vintage .app-header, body.theme-vintage .bottom-nav { box-shadow: 0 2
         <div class="fg full" style="margin-top:15px; padding-top:20px; border-top:1px solid var(--border2);"><label>Photo Gallery (Multiple Images)</label><label class="upload-lbl" for="gallery-files" style="width:max-content; padding:0.6rem 1.5rem;">+ Add Images</label><input type="file" id="gallery-files" accept="image/*" multiple style="display:none" onchange="App.handleGalleryFiles(this)"><div id="gallery-previews" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;"></div></div>
         
         <div class="fg full" style="margin-top:15px; padding-top:20px; border-top:1px solid var(--border2);"></div>
-        <div class="fg"><label>${s('par')}</label><select id="f-par">${pOpts}</select></div>
+      <div class="fg" style="overflow: visible;">
+  <label>${s('par')}</label>
+  <div class="searchable-select-container">
+    <input type="hidden" id="f-par" value="${m && m.parentId ? m.parentId : ''}">
+    <input type="text" id="parent-search-input" class="tool-input" 
+           placeholder="Search parent..." autocomplete="off"
+           value="${m && m.parentId ? (state.members.find(x => x && x.id === m.parentId) ? dname(state.members.find(x => x && x.id === m.parentId)) : '') : s('rootLevel')}" 
+           onfocus="this.select(); App.showParentResults()" 
+           oninput="App.filterParentOptions(this.value)"
+           onclick="event.stopPropagation()">
+    <div id="parent-search-results" class="select-search-results"></div>
+  </div>
+</div>
         <div class="fg"><label>${s('gen')}</label><select id="f-gen">${genOpts}</select></div>
         
         <div class="fg full" style="margin-top:15px; padding-top:20px; border-top:1px solid var(--border2);"><label style="color:var(--gold); font-size:13px;">Spouse Details</label></div>
@@ -1360,13 +1394,29 @@ body.theme-vintage .app-header, body.theme-vintage .bottom-nav { box-shadow: 0 2
     let spAddr = ((getEl('f-sp-address')||{}).value||'').trim();
 
     async function qTrans(t, l) { 
-        if(!GEMINI_API_KEY || GEMINI_API_KEY === 'YOUR_API_KEY_HERE') return ''; 
-        try { 
-            let u = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + GEMINI_API_KEY;
-            let res = await fetch(u, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({contents: [{parts: [{text: `Transliterate into ${l}. Return ONLY the translated name: ${t}`}]}]})});
-            let d = await res.json(); 
-            return d.candidates ? d.candidates[0].content.parts[0].text.trim() : ''; 
-        } catch(e) { return ''; } 
+        if (!t) return '';
+        try {
+            // Only auto-translate if we are trying to get Hindi
+            if (l.includes('Hindi')) {
+                let words = t.split(' ');
+                let translated = [];
+                for (let w of words) {
+                    let res = await fetch(`https://inputtools.google.com/request?text=${encodeURIComponent(w)}&itc=hi-t-i0-und&num=1&cp=0&cs=1&ie=utf-8&oe=utf-8`);
+                    let data = await res.json();
+                    if(data[0] === 'SUCCESS' && data[1][0][1][0]) {
+                        translated.push(data[1][0][1][0]);
+                    } else {
+                        translated.push(w);
+                    }
+                }
+                return translated.join(' ');
+            }
+            // If trying to go backwards (Hindi to English), skip it for this free API
+            return t; 
+        } catch(e) { 
+            console.error(e);
+            return ''; 
+        } 
     }
     
     let btn = document.querySelector('.btn-save'); let ob = btn ? btn.textContent : 'Save'; if(btn) btn.disabled = true;
@@ -1503,6 +1553,59 @@ body.theme-vintage .app-header, body.theme-vintage .bottom-nav { box-shadow: 0 2
 }
   );
 
+  function showParentResults() {
+    let resContainer = getEl('parent-search-results');
+    if (!resContainer) return;
+    
+    // FIX: Pass an empty string here to load ALL members when the menu opens
+    filterParentOptions(''); 
+    resContainer.style.display = 'block';
+    
+    // Clear old listener and delay the new one slightly to prevent event bubbling
+    document.removeEventListener('click', App.closeParentSelect);
+    setTimeout(() => { document.addEventListener('click', App.closeParentSelect); }, 10);
+  }
+
+  function closeParentSelect(e) {
+    let resContainer = getEl('parent-search-results');
+    if (resContainer && !e.target.closest('.searchable-select-container')) {
+        resContainer.style.display = 'none';
+        document.removeEventListener('click', App.closeParentSelect);
+    }
+  }
+
+  function filterParentOptions(query) {
+    let resContainer = getEl('parent-search-results');
+    if (!resContainer) return;
+    
+    let q = query.toLowerCase().trim();
+    let allMems = Array.isArray(state.members) ? state.members : [];
+    let currentEditingMember = state.members.find(x => x && x.id === state.editingId);
+    let invalidParents = currentEditingMember ? [currentEditingMember.id, ...getDescendants(currentEditingMember.id)] : [];
+    
+    let html = `<div class="select-search-item" onclick="App.selectParent('', '${s('rootLevel')}')">${s('rootLevel')}</div>`;
+    
+    let filtered = allMems.filter(x => x && !x.isSpouse && !invalidParents.includes(x.id) && dname(x).toLowerCase().includes(q));
+    
+    filtered.forEach(p => {
+        let safeName = dname(p).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        html += `<div class="select-search-item" onclick="App.selectParent('${p.id}', '${safeName}')">${dname(p)}</div>`;
+    });
+    
+    resContainer.innerHTML = html;
+  }
+
+  function selectParent(id, name) {
+    let hiddenInput = getEl('f-par');
+    let visibleInput = getEl('parent-search-input');
+    if(hiddenInput) hiddenInput.value = id;
+    if(visibleInput) visibleInput.value = name;
+    
+    let resContainer = getEl('parent-search-results');
+    if(resContainer) resContainer.style.display = 'none';
+  }
+  
+  // --- WINDOW EXPORTS ---
   // --- WINDOW EXPORTS ---
   window.App = { 
       doAuth, toggleAuthMode, setLang, showView, startNew, cancelEdit, updateFamilyName, applyUrl, handleFile, 
@@ -1511,7 +1614,8 @@ body.theme-vintage .app-header, body.theme-vintage .bottom-nav { box-shadow: 0 2
       handleBgFile, handleDropZoneOver, handleDropZoneLeave, handleDropZoneDrop, liveUpdateBg: () => { applyBgSettings(); refreshStudioPreview(); }, 
       handleGalleryFiles, removeGalleryImg, updateLayer, removeLayer,
       addTextLayer, updateTextLayer, removeTextLayer, saveTextSettings,
-      openAssignModal, closeAssignModal, saveAssignments, openEditorFromModal, toggleAccordionMode, filterAdmin, filterAuth
+      openAssignModal, closeAssignModal, saveAssignments, openEditorFromModal, toggleAccordionMode, filterAdmin, filterAuth,
+      showParentResults, closeParentSelect, filterParentOptions, selectParent
   };
   
  checkLocalAuth();
