@@ -351,8 +351,10 @@ body.theme-vintage .app-header, body.theme-vintage .bottom-nav { box-shadow: 0 2
     if(t !== 'dark') document.body.classList.add('theme-' + t);
     localStorage.setItem('famTheme', t);
   }
-  let savedTheme = localStorage.getItem('famTheme');
-  if(savedTheme) { getEl('theme-picker').value = savedTheme; setTheme(savedTheme); }
+  // Check if a user has a saved preference; if not, default to 'light'
+  let savedTheme = localStorage.getItem('famTheme') || 'light';
+  getEl('theme-picker').value = savedTheme; 
+  setTheme(savedTheme);
 
   /* --- STATIC BACKGROUND ENGINE --- */
   function applyBgSettings() {
